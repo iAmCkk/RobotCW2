@@ -148,7 +148,7 @@ class ExplorerNode(ExplorerNodeBase):
 
 	# ----- THE ACTUAL IMPLEMENTATION STARTS HERE -----
 
-	baseLine = False
+	baseLine = True
 		
 	if not baseLine:
 
