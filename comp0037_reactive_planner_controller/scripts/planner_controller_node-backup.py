@@ -24,8 +24,7 @@ from comp0037_reactive_planner_controller.occupancy_grid import OccupancyGrid
 
 from comp0037_reactive_planner_controller.passive_planner_controller import PassivePlannerController
 from comp0037_reactive_planner_controller.reactive_planner_controller import ReactivePlannerController
-# from comp0037_reactive_planner_controller.dijkstra_planner import DijkstraPlanner
-from comp0037_reactive_planner_controller.a_star_planner import AStarPlanner
+from comp0037_reactive_planner_controller.dijkstra_planner import DijkstraPlanner
 from comp0037_reactive_planner_controller.move2goal_controller import Move2GoalController
 
 # This class is the main node and orchestrates everything else
@@ -50,15 +49,15 @@ class PlannerControllerNode(object):
             rospy.loginfo('Getting map size information from stdr')
 
         # Get the map service
-        # rospy.loginfo('Waiting for static_map to become available.')
+        rospy.loginfo('Waiting for static_map to become available.')
         rospy.wait_for_service('static_map') 
         self.mapServer = rospy.ServiceProxy('static_map', GetMap)
-        # rospy.loginfo('Found static_map; requesting map data')
+        rospy.loginfo('Found static_map; requesting map data')
             
         # Query the map status
         response = self.mapServer()
         map = response.map
-        # rospy.loginfo('Got map data')
+        rospy.loginfo('Got map data')
             
         # Allocate the occupancy grid and set the data from the array sent back by the map server
         self.occupancyGrid = OccupancyGrid(map.info.width, map.info.height, map.info.resolution)
@@ -71,12 +70,11 @@ class PlannerControllerNode(object):
             self.occupancyGrid.setFromDataArrayFromMapServer(map.data)
 
     def mapUpdateCallback(self, msg):
-        # rospy.loginfo("map update received")
+        rospy.loginfo("******************************** map update received")
         self.plannerController.handleMapUpdateMessage(msg)
         
     def createPlanner(self):
-       	# self.planner = DijkstraPlanner('Dijkstra', self.occupancyGrid)
-	self.planner = AStarPlanner('A*', self.occupancyGrid)
+        self.planner = DijkstraPlanner('Dijkstra', self.occupancyGrid)
         self.planner.setPauseTime(0)
         self.planner.windowHeightInPixels = rospy.get_param('maximum_window_height_in_pixels', 700)
 
@@ -88,10 +86,8 @@ class PlannerControllerNode(object):
 
     def createPlannerController(self):
         if rospy.get_param('use_reactive_planner_controller', False) is True:
-	    print("USING REACTIVE PLANNER -----------")
             self.plannerController = ReactivePlannerController(self.occupancyGrid, self.planner, self.robotController)
         else:
-	    print("USING PASSIVE PLANNER -----------")
             self.plannerController = PassivePlannerController(self.occupancyGrid, self.planner, self.robotController)
 
     def handleDriveToGoal(self, goal):
@@ -129,7 +125,7 @@ class PlannerControllerNode(object):
         # ugly logic and can lead to deadlocking.
         service = rospy.Service('drive_to_goal', Goal, self.handleDriveToGoal)
 
-        print 'Spinning to service goal requests'
+        rospy.loginfo('Spinning to service goal requests')
         
         while not rospy.is_shutdown():
 

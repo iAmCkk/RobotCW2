@@ -88,19 +88,34 @@ class ControllerBase(object):
         self.plannerDrawer = plannerDrawer
 
         rospy.loginfo('Driving path to goal with ' + str(len(path.waypoints)) + ' waypoint(s)')
+
+	# NOTE: from coursework one
+	totalAngularVel = 0
+	totalLinearVel = 0
+
+	totalRotCount = 0
+	totalLinCount = 0
+	totalCount = 0
         
         # Drive to each waypoint in turn
         for waypointNumber in range(0, len(path.waypoints)):
             cell = path.waypoints[waypointNumber]
             waypoint = self.occupancyGrid.getWorldCoordinatesFromCellCoordinates(cell.coords)
 
-            rospy.loginfo("Driving to waypoint (%f, %f)", waypoint[0], waypoint[1])
+            # rospy.loginfo("Driving to waypoint (%f, %f)", waypoint[0], waypoint[1])
 
             if self.abortCurrentGoal is True:
                 self.stopRobot()
                 return False
 
-            if self.driveToWaypoint(waypoint) is False:
+	    check = self.driveToWaypoint(waypoint)
+	    totalAngularVel += abs(check[0])
+	    totalLinearVel += check[1]
+	    totalRotCount += check[2]
+	    totalLinCount += check[3]
+	    totalCount += check[4]
+
+            if check[5] is False:
                 self.stopRobot()
                 return False
                 
@@ -109,7 +124,13 @@ class ControllerBase(object):
                 return False
 
         rospy.loginfo('Rotating to goal orientation (' + str(goalOrientation) + ')')
-        
+
         # Finish off by rotating the robot to the final configuration
-        return self.rotateToGoalOrientation(goalOrientation)
+	rotCheck = self.rotateToGoalOrientation(goalOrientation)
+
+	print("Total angular velocity: " + str(totalAngularVel) + ", total linear: " + str(totalLinearVel), ", final turn: " + str(rotCheck[0]))
+	print("Total rotation count: " + str(totalRotCount) + ", total linear count: " + str(totalLinCount) + ", no. of iterations: " + str(totalCount))
+
+        # return self.rotateToGoalOrientation(goalOrientation)
+	return rotCheck[1]
  

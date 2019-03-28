@@ -27,15 +27,15 @@ class Move2GoalController(ControllerBase):
 
         # Flag to toggle the mapper state
         self.enableSettingMapperState = rospy.get_param('enable_change_mapper_state', True)
-        rospy.loginfo('enableSettingMapperState=%d', self.enableSettingMapperState)
+        # rospy.loginfo('enableSettingMapperState=%d', self.enableSettingMapperState)
         self.mappingState = True
 
         # Get the service to switch the mapper on and off if required
         if self.enableSettingMapperState is True:
-            rospy.loginfo('Waiting for change_mapper_state')
+            # rospy.loginfo('Waiting for change_mapper_state')
             rospy.wait_for_service('change_mapper_state')
             self.changeMapperStateService = rospy.ServiceProxy('change_mapper_state', ChangeMapperState)
-            rospy.loginfo('Got the change_mapper_state service')
+            # rospy.loginfo('Got the change_mapper_state service')
    
     def get_distance(self, goal_x, goal_y):
         distance = sqrt(pow((goal_x - self.pose.x), 2) + pow((goal_y - self.pose.y), 2))
@@ -56,6 +56,17 @@ class Move2GoalController(ControllerBase):
         dY = waypoint[1] - self.pose.y
         distanceError = sqrt(dX * dX + dY * dY)
         angleError = self.shortestAngularDistance(self.pose.theta, atan2(dY, dX))
+
+	# NOTE: added from coursework one, these metrics keep track of distance traveled
+	#	and total angle turned, so that we can evaluate performance
+	totalAngularVel = 0
+	totalLinearVel = 0
+
+	# NOTE: also added from coursework one, these metrics keep track of the number
+	#	of instructions issued of each type
+	rotCount = 0
+	linCount = 0
+	count = 0
        
         while (distanceError >= self.distanceErrorTolerance) & (not self.abortCurrentGoal) & (not rospy.is_shutdown()):
             #print("Current Pose: x: {}, y:{} , theta: {}\nGoal: x: {}, y: {}\n".format(self.pose.x, self.pose.y,
@@ -65,8 +76,10 @@ class Move2GoalController(ControllerBase):
 
             # Proportional Controller
             # linear velocity in the x-axis: only switch on when the angular error is sufficiently small
+
+	    speedScale = 1
             if math.fabs(angleError) < self.driveAngleErrorTolerance:
-                vel_msg.linear.x = max(0.0, min(self.distanceErrorGain * distanceError, 10.0))
+                vel_msg.linear.x = max(0.0, min(self.distanceErrorGain * distanceError * speedScale, 10.0))
                 vel_msg.linear.y = 0
                 vel_msg.linear.z = 0
 
@@ -89,6 +102,21 @@ class Move2GoalController(ControllerBase):
                 elif (self.mappingState is False) and (abs(vel_msg.angular.z) < math.radians(0.1)):
                     self.mappingState = True
                     self.changeMapperStateService(True)
+
+	    # NOTE: from coursework one, update the metrics we use to keep track of the performance
+	    #	    total angular vel only updates on a "significant" rotation
+	    if (abs(math.degrees(vel_msg.angular.z) / 10) > 1):	
+	    	totalAngularVel += math.degrees(vel_msg.angular.z) / 10
+		# print(totalAngularVel)
+		rotCount += 1
+	
+	    if not vel_msg.linear.x == 0:
+		totalLinearVel += abs(vel_msg.linear.x)
+	    	linCount += 1
+
+	    # rospy.loginfo("Angular: %f, Linear: %f", abs(math.degrees(vel_msg.angular.z)), vel_msg.linear.x)
+	    # rospy.loginfo("Original %f, Scaled: %f", vel_msg.linear.x/speed_scale, vel_msg.linear.x)
+	    count += 1		# roughly ends up being equal to the time taken in 1/10 seconds
             
             # Publishing our vel_msg
             self.velocityPublisher.publish(vel_msg)
@@ -111,7 +139,9 @@ class Move2GoalController(ControllerBase):
         # Stopping our robot after the movement is over
         self.stopRobot()
 
-        return (not self.abortCurrentGoal) & (not rospy.is_shutdown())
+        oldReturn = (not self.abortCurrentGoal) & (not rospy.is_shutdown())
+        # return (not self.abortCurrentGoal) & (not rospy.is_shutdown())
+	return [totalAngularVel, totalLinearVel, rotCount, linCount, count, oldReturn]
 
     def rotateToGoalOrientation(self, goalOrientation):
         vel_msg = Twist()
@@ -119,6 +149,9 @@ class Move2GoalController(ControllerBase):
         goalOrientation = math.radians(goalOrientation)
 
         angleError = self.shortestAngularDistance(self.pose.theta, goalOrientation)
+
+	# NOTE: from coursework one
+	totalAngle = 0
 
         if self.enableSettingMapperState is True:
             self.mappingState = False
@@ -132,6 +165,7 @@ class Move2GoalController(ControllerBase):
             vel_msg.angular.x = 0
             vel_msg.angular.y = 0
             vel_msg.angular.z = max(-5.0, min(self.angleErrorGain * angleError, 5.0))
+       	    totalAngle += abs(math.degrees(vel_msg.angular.z) / 10)
 
             # Publishing our vel_msg
             self.velocityPublisher.publish(vel_msg)
@@ -148,4 +182,7 @@ class Move2GoalController(ControllerBase):
             self.mappingState = True
             self.changeMapperStateService(True)
 
-        return (not self.abortCurrentGoal) & (not rospy.is_shutdown())
+        # return (not self.abortCurrentGoal) & (not rospy.is_shutdown())
+	# in order to enable performance evaluation
+	oldReturn = (not self.abortCurrentGoal) & (not rospy.is_shutdown())
+        return [totalAngle, oldReturn]

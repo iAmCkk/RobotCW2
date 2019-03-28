@@ -15,10 +15,10 @@ class ExplorerNodeBase(object):
         rospy.init_node('explorer')
 
         # Get the drive robot service
-        rospy.loginfo('Waiting for service drive_to_goal')
+        # rospy.loginfo('Waiting for service drive_to_goal')
         rospy.wait_for_service('drive_to_goal')
         self.driveToGoalService = rospy.ServiceProxy('drive_to_goal', Goal)
-        rospy.loginfo('Got the drive_to_goal service')
+        # rospy.loginfo('Got the drive_to_goal service')
 
         self.waitForGoal =  threading.Condition()
         self.waitForDriveCompleted =  threading.Condition()
@@ -42,7 +42,7 @@ class ExplorerNodeBase(object):
         self.visualisationUpdateRequired = False
 
         # Request an initial map to get the ball rolling
-        rospy.loginfo('Waiting for service request_map_update')
+        # rospy.loginfo('Waiting for service request_map_update')
         rospy.wait_for_service('request_map_update')
         mapRequestService = rospy.ServiceProxy('request_map_update', RequestMapUpdate)
         mapUpdate = mapRequestService(True)
@@ -54,7 +54,7 @@ class ExplorerNodeBase(object):
         self.mapUpdateCallback(mapUpdate.initialMapUpdate)
         
     def mapUpdateCallback(self, msg):
-        rospy.loginfo("map update received")
+        # rospy.loginfo("map update received")
         
         # If the occupancy grids do not exist, create them
         if self.occupancyGrid is None:

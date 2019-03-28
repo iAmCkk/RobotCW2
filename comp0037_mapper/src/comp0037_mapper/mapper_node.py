@@ -33,6 +33,7 @@ class MapperNode(object):
         self.mapServer = rospy.ServiceProxy('static_map', GetMap)
         resp = self.mapServer()
 
+	self.entropyFile = open('/home/ros_user/cw2_catkin_ws/src/comp0037/comp0037_mapper/src/comp0037_mapper/entropy.txt', 'w')
 
         # Drawing options
         self.showOccupancyGrid = rospy.get_param('show_mapper_occupancy_grid', True)
@@ -106,11 +107,11 @@ class MapperNode(object):
 
     def mappingStateService(self, changeMapperState):
         self.enableMapping = changeMapperState.enableMapping
-        rospy.loginfo('Changing the enableMapping state to %d', self.enableMapping)
+        # rospy.loginfo('Changing the enableMapping state to %d', self.enableMapping)
         return ChangeMapperStateResponse()
 
     def requestMapUpdateService(self, request):
-        rospy.loginfo('requestMapUpdateService with deltaOccupancyGridRequired %d', request.deltaOccupancyGridRequired)
+        # rospy.loginfo('requestMapUpdateService with deltaOccupancyGridRequired %d', request.deltaOccupancyGridRequired)
         mapUpdateMessage = self.constructMapUpdateMessage(request.deltaOccupancyGridRequired)
         return RequestMapUpdateResponse(mapUpdateMessage)
 
@@ -141,7 +142,7 @@ class MapperNode(object):
 
         # Construct the map update message and send it out
         mapUpdateMessage = self.constructMapUpdateMessage(True)
-	rospy.loginfo('publishing map update message')
+	# rospy.loginfo('publishing map update message')
         self.mapUpdatePublisher.publish(mapUpdateMessage)
         
     # Predict the pose of the robot to the current time. This is to
@@ -321,7 +322,7 @@ class MapperNode(object):
         # Construct the map update message
         mapUpdateMessage = MapUpdate()
 
-	rospy.loginfo('constructMapUpdateMessage: invoked')
+	# rospy.loginfo('constructMapUpdateMessage: invoked')
 
         mapUpdateMessage.header.stamp = rospy.Time().now()
         mapUpdateMessage.isPriorMap = self.noLaserScanReceived
@@ -335,11 +336,50 @@ class MapperNode(object):
 
         return mapUpdateMessage
 
+    def entropyGrid(self):
+
+	# entropies = []
+	totalEntropy = 0
+	# go through all of the occupancy grid cells
+	for y in range(0, self.occupancyGrid.getHeightInCells()):
+
+		# entropyRow = []
+		entropyRow = 0
+		for x in range(0, self.occupancyGrid.getWidthInCells()):
+
+			entropyElement = self.occupancyGrid.getCell(x, y)
+	
+			cell_ent = 0
+			# in the case where the cell is unknown
+			# (0.5 * ln(0.5)) * (-2) ~ 0.69315
+			if entropyElement == 0.5:
+				cell_ent = 0.69315
+			
+			# entropyRow.append(cell_ent)
+			entropyRow += cell_ent
+
+		# entropies.append(entropyRow)
+		totalEntropy += entropyRow
+		# self.entropyFile.write(str(entropyRow) + "\n")
+
+	# self.entropyFile.write("\n\n")
+	self.entropyFile.write(str(totalEntropy) + "\n")
+	# return entropies
+	return totalEntropy
         
     def run(self):
+
+        slept = 0
         while not rospy.is_shutdown():
             self.updateVisualisation()
             rospy.sleep(0.1)
+	    slept += 0.1
+	    if slept >= 5:
+
+		entropy_grid = self.entropyGrid()
+		slept = 0
+
+	self.entropyFile.close()
         
   
 

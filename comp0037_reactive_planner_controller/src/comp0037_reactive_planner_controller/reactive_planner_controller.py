@@ -38,6 +38,18 @@ class ReactivePlannerController(PlannerControllerBase):
         # If the route is not viable any more, call
         # self.controller.stopDrivingToCurrentGoal()
 
+	for i in range(0, self.currentPlannedPath.numberOfWaypoints):
+		# print(self.currentPlannedPath.waypoints[i])
+		waypoint = self.currentPlannedPath.waypoints[i]
+
+		waypoint_coords = waypoint.coords
+		# print(waypoint_coords)
+		status = self.occupancyGrid.getCell(waypoint_coords[0], waypoint_coords[1])
+		
+		if(status == 1):
+			print("blocked")
+			self.controller.stopDrivingToCurrentGoal()
+	
         pass
     
     def driveToGoal(self, goal):
